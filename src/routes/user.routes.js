@@ -23,6 +23,8 @@ router.route("/login").post(loginUser)
 
 //secured Routes
 //verifyjwt ho jayega phir logout user call hoga islie verifyJWT me last me next() add kiya taki ye hone k baad next fn pr chla jaye
-router.route("/logout").post(verifyJWT,logoutUser) 
+router.route("/logout").post(verifyJWT,logoutUser)
+
+router.route("/refresh-token").post(refreshAccessToken)
 
 export default router;

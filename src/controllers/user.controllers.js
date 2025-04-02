@@ -3,6 +3,8 @@ import{ApiError} from "../../utils/ApiError.js"
 import {User} from "../models/user.models.js"
 import { uploadOnCloudinary } from "../../utils/cloudinary.js";
 import { ApiResponse } from "../../utils/ApiResponse.js";
+import { verifyJWT } from "../middlewares/auth.middleware.js";
+import { jwt } from "jsonwebtoken";
 
 const generateAccessAndRefreshTokens=async(userId)=>{
     try{
@@ -99,15 +101,18 @@ const loginUser=asyncHandler(async(req,res)=>{
     //send cookie
     
     const {email,username,password}=req.body
+    //console.log(email)
     //agar dono me se ek bhi nhi h to error
-    if (!username || !email){
+    if (!(username || email)){
         throw new ApiError(400,"username or email is required")
     }
     //findOne jaise hi pehla use matching entry mil jayegi vo return kr dega
     //hame krna h ya to email dhund do ya to username dhund do to we make use of $or,,isk andr array k andr obj pass kr skte h ...ye find krega ya to username k basis pr mil jaye ya email
-    const user=await User.findOne({
-        $or:[{username},{email}]
-    })
+    //console.log(await User.find());
+    const user = await User.findOne({
+        $or: [{ username: username }, { email: email }]
+    });
+    
     if(!user){
         throw new ApiError(404,"User does not exist")
     }
@@ -176,8 +181,57 @@ const logoutUser=asyncHandler(async(req,res)=>{
     .json(new ApiResponse(200,{},"User logged out"))
 })
 
+//access token aur refresh token ka bs itna sa kaam h ki user ko baar baar apna emai aur username na dena pade 
+//hame ek endpoint bnana h jaha pr hit hote hi user apna token refresh kara paye
+//refresh karane k lie refresh token bhejna hi padega jo ki cookies se access kr skte
+const refreshAccessToken=asyncHandler(async(req,res)=>{
+    const incomingRefreshToken=req.cookies.refreshToken||req.body.refreshToken;
+    if(!incomingRefreshToken){
+        throw new ApiError(401,"Unauthorised request")
+    }
+    //ab verify kraenge incoming token ko jwt se
+    try {
+        const decodedToken=jwt.verify(
+            incomingRefreshToken,
+            process.env.REFRESH_TOKEN_SECRET
+        )
+        const user=await User.findById(decodedToken?._id);
+        if(!user){
+            throw new ApiError(401,"Invalid refresh token")
+        }
+        //hmare paas 2 token aya h ek to incomingRefreshToken (jo user hme bhej rha) aur hmne jo user find kiya usk paas bhi token hoga dono ko match krao
+    
+        if(incomingRefreshToken!=user?.refreshToken){
+            throw new ApiError(401,"Refresh token is expired or used")
+        }
+    
+        //agr dono match krte h to naya generate krk dedo denerateaccessand refresh token method se
+        const options={
+            httpOnly:true,
+            secure:true
+        }
+        const {accessToken,newRefreshToken}=await generateAccessAndRefreshTokens(user._id)
+        return res
+        .status(200)
+        .cookie("accessToken",accessToken,options)
+        .cookie("refreshToken",newRefreshToken,options)
+        .json(
+            new ApiError(
+                200,
+                {accessToken,refreshToken:newRefreshToken},
+                "Access token refreshed"
+            )
+        )
+    } catch (error) {
+        throw new ApiError(401,error?.message||"Invalid refresh token")
+    }
+})
+
+
 export {
     registerUser,
     loginUser,
-    logoutUser
+    logoutUser,
+    refreshAccessToken
 }
+

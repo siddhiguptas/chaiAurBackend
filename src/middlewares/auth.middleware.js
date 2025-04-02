@@ -1,7 +1,8 @@
 //ye sirf verify krega ki user h ya nhi h
-import { User } from "../models/user.models";
+import { User } from "../models/user.models.js";
 import jwt from "jsonwebtoken";
-import { asyncHandler } from "../../utils/asyncHandler";
+import { asyncHandler } from "../../utils/asyncHandler.js";
+import {ApiError} from "../../utils/ApiError.js"
 
 //jb user ko verify karaya to at,rt de diya to unhi k basis pr  to verify krenge agr true login hua to req k andr req .user add kr dunga
 //req k paass cookie ka access h udhr se at rt le lenge ya to authorisation se token nikal lo
@@ -21,7 +22,7 @@ export const verifyJWT=asyncHandler(async(req,_,next)=>{
     
         const user=await User.findById(decodedToken?._id).select("-password -refreshToken")
         if(!user){
-            //TODO: discuss about frontend
+            
             throw new ApiError(401,"Invalid Access Token")
         }
     
