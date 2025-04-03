@@ -227,11 +227,132 @@ const refreshAccessToken=asyncHandler(async(req,res)=>{
     }
 })
 
+//kuch basic activities jo hme krni hi hoti h jb hm user bnate h
+//user se pass change krate time ye dekhne k lie ki user already logged in h ya nhi ,cookies h ya nhi ye check krne k lie to jb route bnayenge to middleware use krlenge jwt
+//user se pass change krate time kya kya field chahie,old,new
+//user chahie tbhi to field me jakar pass verify krva paunga
+//agr vo pass change kjr pa rha--logged in h--middleware lga h to loggedin ho paya
+//middleware req.user k andr user h to vaha se id nikalo
+const changeCurrentPassword=asyncHandler(async(req,res)=>{
+    const {oldPassword,newPassword}=req.body
+    const user=await User.findById(req.user?._id)
+    const isPasswordCorrect=await user.isPasswordCorrect(oldPassword)
 
+    if(!isPasswordCorrect){
+        throw new ApiError(400,"Invalid old password")
+    }
+
+    user.password=newPassword
+    await user.save({validateBeforeSave:false})
+
+    return res
+    .status(200)
+    .json(new ApiResponse(200,{},"Password changed successfully"))
+
+})
+
+//agr mujhe current user lena h to ek end point bnana padega jaha pr current user get kr paao
+const getCurrentUser=asyncHandler(async(req,res)=>{
+    return res
+    .status(200)
+    .json(200,req.user,"current user fetched successfully")
+})
+
+//agr koi file update kra rhe to alg end points rkha jata h..better approach..user sirf apni image update krna chahta to usko vhi ki vhi update aur save option de do end pt hit kr do
+//pura user vapas se save krte to text data bhi baar baar jaata h to aisa na kro
+const updateAccountDetails=asyncHandler(async(req,res)=>{
+    const {fullname,email}=req.body
+    if(!fullname||!email){
+        throw new ApiError(400,"All fields are required")
+    }
+
+    const user=await User.findByIdAndUpdate(req.user?._id,
+        {
+            $set:{
+                fullname,
+                email
+            }
+        },
+        {new:true}
+    ).select("-password")
+
+    return res 
+    .status(200)
+    .json(new ApiResponse(200,user,"Account details updated successfully"));
+})
+
+//to update files--first middleware multer lgana padega taki files accept kr paao secound auth middleware taki vahi update kr paye jo loggedin h
+//jb bhi hame multer middleware inject krna h hame file option mil jaega vaha
+//yha sirf ek file leni h to req.file na ki files
+const updateUserAvatar=asyncHandler(async(req,res)=>{
+    const avatarLocalPath=req.file?.path
+
+    if(!avatarLocalPath){
+        throw new ApiError(400,"Avatar file is missing")
+    }
+
+    const avatar=await uploadOnCloudinary(avatarLocalPath)
+
+    if(!avatar.url){
+        throw new ApiError(400,"Error while uploading on avatar")
+    }
+
+    //ab hme krna h update
+    const user=await User.findByIdAndUpdate(req.user?._id,
+        {
+            $set:{
+                avatar:avatar.url
+            }
+        },
+        {new:true}
+    ).select("-password")
+
+    return res
+    .status(200)
+    .json(new ApiResponse(200,user,"Avatar updated successfully"))
+
+
+
+})
+
+const updateUserCoverImage=asyncHandler(async(req,res)=>{
+    const coverImageLocalPath=req.file?.path
+
+    if(!coverImageLocalPath){
+        throw new ApiError(400,"Cover image file is missing")
+    }
+
+    const coverImage=await uploadOnCloudinary(coverImageLocalPath)
+
+    if(!coverImage.url){
+        throw new ApiError(400,"Error while uploading on coverImage")
+    }
+
+    //ab hme krna h update
+    const user=await User.findByIdAndUpdate(req.user?._id,
+        {
+            $set:{
+                coverImage:coverImage.url
+            }
+        },
+        {new:true}
+    ).select("-password")
+
+    return res
+    .status(200)
+    .json(new ApiResponse(200,user,"Cover image updated successfully"))
+
+
+})
 export {
     registerUser,
     loginUser,
     logoutUser,
-    refreshAccessToken
+    refreshAccessToken,
+    changeCurrentPassword,
+    getCurrentUser,
+    updateAccountDetails,
+    updateUserAvatar,
+    updateUserCoverImage
 }
 

@@ -2,6 +2,7 @@
 // //channel bhi ek trh ka user hi h tbhi to mai comment vagairah kr pata hu
 //subscribers bhi user hi h
 //ab in users ko bs alg jgh rkha jata h taki inki id vagairah match kr le
+//channels me dikhai deta no. of subscribers and whether user pg is subscribed or not
 
 import mongoose, {Schema} from "mongoose"
 
