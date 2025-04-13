@@ -439,6 +439,71 @@ const getUserChannelProfile=asyncHandler(async(req,res)=>{
     )
 })
 
+//ab hame user ki watch history chahie hamne jaise hi user liya req.user se id nikal kr match kr lenge
+//watchHistory lane k lie mujhe join krna padega
+//wH hmare pas ek array tha usme hm sare videos k id store kr rhe the,..to hmare paas boht saari id bole to boht sare docs mil jayenge ...lekin ek lookup se boht sare docs  mil gye lekin yha pr owner bhi to h vo bhi to chahie hoga ...owner bhi user h...ek aur lookup krna hoga jo ki nested lookup hoga...wH se jaise hi join krenge hmare paas multiple docs mil jayenge videos k pr usme owner hoga hi nhi to jaise hi hme voi doc mila turant ek aur join krna padega ....hr ek doc k andr ek aur join hoga
+//nested lookup me kya hoga owner se jao user k paas aur uski info jo jo chahie lekr aayenge aur populate kr lenge
+
+const getWatchHistory=asyncHandler(async(req,res)=>{
+    //mongo db ki id string me milti h jo ki actually me id nhi h ..mongoose k andr internally id ko mongo db ki id me convert kr deta..req.user._id
+    //aggregation pipelines me mongoose kaam nhi krta h uska code directly hi jata h to hme id ko convert krne ki jrurt h
+    const user=await User.aggregate([
+        {
+            $match:{
+                _id:new mongoose.Types.ObjectId(req.user._id)
+            }
+            //ab hme user mil gya h ab uski watch history k andr jana padega lookup krna padega
+            
+        },{
+            $lookup:{
+                from:"videos",
+                localField:"watchHistory",
+                foreignField:"_id",
+                as:"watchHistory",
+                pipeline:[
+                    {
+                        $lookup:{
+                            from:"users",
+                            localField:"owner",
+                                foreignField:"_id",
+                                as:"owner",
+                                //abhi hmare paas arrays k andr boht sari multiple values aayi h ...to hm ek sub pipline lgayenge jisse owner k andr jo hme chahie vhi aaye
+                                pipeline:[
+                                    {
+                                        $project:{
+                                            fullname:1,
+                                            username:1,
+                                            avatar:1
+                                        }
+                                    }
+                                    ,
+                                    //ab mai array ko sudharna chahti hu
+                                    {
+                                        $addFields:{
+                                            owner:{
+                                                $first:"$owner"
+                                            }
+                                        }
+                                        //sidhe hi owner ka first element mil jayega
+                                    }
+
+                                ]
+                        }
+                    }
+                ]
+            }
+        }
+        //ab ham us situation pr pahuch gye h jaha pr hmare paas me boht sare videos doc k form me aa gye...ab ek sub pipeline lhgane padenge..isme hr lookup k sath pipeline lgao
+        
+    ])
+
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(200,user[0].watchHistory,"Watch history fetched successfully")
+    )
+})
+
 export {
     registerUser,
     loginUser,
@@ -449,6 +514,7 @@ export {
     updateAccountDetails,
     updateUserAvatar,
     updateUserCoverImage,
-    getUserChannelProfile
+    getUserChannelProfile,
+    getWatchHistory
 }
 
