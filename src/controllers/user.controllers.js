@@ -255,7 +255,7 @@ const changeCurrentPassword=asyncHandler(async(req,res)=>{
 const getCurrentUser=asyncHandler(async(req,res)=>{
     return res
     .status(200)
-    .json(200,req.user,"current user fetched successfully")
+    .json(new ApiResponse(200,req.user,"current user fetched successfully"))
 })
 
 //agr koi file update kra rhe to alg end points rkha jata h..better approach..user sirf apni image update krna chahta to usko vhi ki vhi update aur save option de do end pt hit kr do
@@ -344,6 +344,101 @@ const updateUserCoverImage=asyncHandler(async(req,res)=>{
 
 
 })
+
+//jb hme kisi bhi channel ki profile chahie hoti h to ham us channel k url pr jate h eg /cac to hame user milega req.body se nhi req.params se mtlb ki uske url se
+const getUserChannelProfile=asyncHandler(async(req,res)=>{
+    const {username}=req.params
+
+    if(!username?.trim()){
+        throw new ApiError(400,"username is missing")
+    }
+
+    //isme problem ye h ki ham ek baar databse se user lenge pura -->User.find({username})-->phir uski id lgayenge ...isse acha ham direct aggregation pipeline le skte jisme match field hota to vo automatically sare docs me se ek doc find kr lega
+    //aggregate pipeline likhne k baad o/p arrays aata h
+    const channel=await User.aggregate([
+        {
+            $match:{
+                username:username?.toLowerCase()
+            }
+        }
+        //abhi yha pr hamne filter kr liya apna ek document
+        //ab mere paas ek doc h bs ab us doc k basis pr mujhe krna h lookup-->ab cac k subscriber kitne h vo find krna h
+        ,{
+            $lookup:{
+                from:"subscriptions",
+                localField:"_id",
+                foreignField:"channel",
+                as:"subscribers"
+            }
+        }
+        //to ye ho gyi hmari first pipeline jaha hmne find kr liya h usk subscribers
+        //ab maine kitne subscribe kiye h vo find krna h
+        ,{
+            $lookup:{
+                from:"subscriptions",
+                localField:"_id",
+                foreignField:"subscriber",
+                as:"subscribedTo"
+            }
+        }
+        //ab hmare paas ye dono field aa chuke h pr ye dono field alg alg h ...ab indono fields ko hame add bhi krna padega
+        //isk lie ek aur pipeline ham likh skte h
+        //isk lie ham addField use krenge--jo ki jitne fields h utne to rkhega hi rkhega plus ek additional field add kr dega
+        ,{
+            $addFields:{
+                subscribersCount:{
+                    $size:"$subscribers"
+                },
+                channelsSubscribedToCount:{
+                    $size:"$subscribedTo"
+                },
+                //ab button ka sochenge ki subscribed dikhana h ya subscribe-->to ham frontend vale ko ek true or false msg bhej denge aur usk basis pr vo calculate kr lega ki true h to subscribed h nhi h to subscribe
+                //mujhe ye dekhna h jo hmare pass document aaya h subscribers field usme mai hu ya nhi
+                //in array aur obj dono me se dekh leta h
+                isSubscribed:{
+                    $cond:{
+                        if:{$in:[req.user?._id,"$subscribers.subscriber"]},
+                        then:true,
+                        else:false
+                    }
+
+
+                }
+            }
+        },
+        //ab mujhe ek aur pipeline use krni h jaha pr mujhe project use krna h
+        //jo chiz k aage 1 likha h vhi vhi show krega
+        {
+            $project:{
+                fullname:1,
+                username:1,
+                subscribersCount:1,
+                channelsSubscribedToCount:1,
+                isSubscribed:1,
+                avatar:1,
+                coverImage:1,
+                email:1,
+
+                
+
+            }
+        }
+        
+        
+    ])
+    console.log(channel);
+
+    if(!channel?.length){
+        throw new ApiError(404,"channel does dont exists")
+    }
+
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(200,channel[0],"User channel fetched successfully")
+    )
+})
+
 export {
     registerUser,
     loginUser,
@@ -353,6 +448,7 @@ export {
     getCurrentUser,
     updateAccountDetails,
     updateUserAvatar,
-    updateUserCoverImage
+    updateUserCoverImage,
+    getUserChannelProfile
 }
 
