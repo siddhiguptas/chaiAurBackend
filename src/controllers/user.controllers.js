@@ -4,7 +4,8 @@ import {User} from "../models/user.models.js"
 import { uploadOnCloudinary } from "../../utils/cloudinary.js";
 import { ApiResponse } from "../../utils/ApiResponse.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
-import { jwt } from "jsonwebtoken";
+import jwt  from "jsonwebtoken";
+import mongoose from "mongoose";
 
 const generateAccessAndRefreshTokens=async(userId)=>{
     try{
@@ -155,13 +156,13 @@ const loginUser=asyncHandler(async(req,res)=>{
 //middleware-jane se pehle mil kr jaiega
 //ham khud ka middleware  design krenge
 //set kya kya update krna h vo krdega
-//new se new updated valiue aayegi
+//new se new updated value aayegi
 const logoutUser=asyncHandler(async(req,res)=>{
     await User.findByIdAndUpdate(
         req.user._id,
         {
-            $set:{
-                refreshToken:undefined
+            $unset:{
+                refreshToken:1 //this removes the field from document
             }
         },
         {
@@ -186,6 +187,7 @@ const logoutUser=asyncHandler(async(req,res)=>{
 //refresh karane k lie refresh token bhejna hi padega jo ki cookies se access kr skte
 const refreshAccessToken=asyncHandler(async(req,res)=>{
     const incomingRefreshToken=req.cookies.refreshToken||req.body.refreshToken;
+    console.log(incomingRefreshToken);
     if(!incomingRefreshToken){
         throw new ApiError(401,"Unauthorised request")
     }
@@ -216,7 +218,7 @@ const refreshAccessToken=asyncHandler(async(req,res)=>{
         .cookie("accessToken",accessToken,options)
         .cookie("refreshToken",newRefreshToken,options)
         .json(
-            new ApiError(
+            new ApiResponse(
                 200,
                 {accessToken,refreshToken:newRefreshToken},
                 "Access token refreshed"
@@ -243,6 +245,9 @@ const changeCurrentPassword=asyncHandler(async(req,res)=>{
     }
 
     user.password=newPassword
+    console.log('Old Password:', oldPassword);
+console.log('Stored Password:', user.password);
+
     await user.save({validateBeforeSave:false})
 
     return res
