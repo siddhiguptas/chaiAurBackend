@@ -36,7 +36,7 @@ router.route("/update-account").patch(verifyJWT,updateAccountDetails)
 //pehle jwt hona chhahie kyuki pehle user loggedin ho tbhi hme file bheje..second middleware lgayenge upload multer ka
 router.route("/avatar").patch(verifyJWT,upload.single("avatar"),updateUserAvatar)
 
-router.route("/cover-image").patch(verifyJWT,upload.single("/coverImage"),updateUserCoverImage)
+router.route("/cover-image").patch(verifyJWT,upload.single("coverImage"),updateUserCoverImage)
 
 //jb params me se lete ...:k baad milta h
 router.route("/c/:username").get(verifyJWT,getUserChannelProfile)
